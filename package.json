@@ -1,0 +1,10 @@
+{
+  "name": "model-atlas",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "test": "node --test tests/auth.test.mjs"
+  },
+  "engines": {"node": ">=22.13.0"}
+}

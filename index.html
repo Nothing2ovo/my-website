@@ -57,13 +57,14 @@
     <div class="auth-switch" role="group" aria-label="选择登录或注册"><button type="button" data-auth-mode="login" aria-pressed="true">登录</button><button type="button" data-auth-mode="register" aria-pressed="false">注册</button></div>
     <form id="auth-form">
       <div id="name-field" hidden><label for="auth-name">昵称</label><input id="auth-name" name="nickname" autocomplete="nickname" minlength="2" maxlength="20" placeholder="怎么称呼你？"></div>
+      <div id="email-field" hidden><label for="auth-email">邮箱</label><input id="auth-email" name="email" type="email" autocomplete="email" maxlength="254" placeholder="你的邮箱地址"></div>
       <label for="auth-account">用户名</label><input id="auth-account" name="username" autocomplete="username" required pattern="[A-Za-z0-9_]{3,32}" minlength="3" maxlength="32" placeholder="3–32 位字母、数字或下划线" aria-describedby="account-hint"><small id="account-hint">用户名不区分大小写，用于登录。</small>
-      <label for="auth-password">密码</label><div class="password-field"><input id="auth-password" name="password" type="password" autocomplete="current-password" required minlength="8" maxlength="128" placeholder="至少 8 位，请使用演示密码"><button id="toggle-password" type="button" aria-label="显示密码" aria-pressed="false">显示</button></div>
+      <label for="auth-password">密码</label><div class="password-field"><input id="auth-password" name="password" type="password" autocomplete="current-password" required minlength="8" maxlength="128" placeholder="请输入 8–128 位密码"><button id="toggle-password" type="button" aria-label="显示密码" aria-pressed="false">显示</button></div>
       <div id="confirm-field" hidden><label for="auth-confirm">确认密码</label><input id="auth-confirm" name="confirm" type="password" autocomplete="new-password" minlength="8" maxlength="128" placeholder="再输入一次密码"></div>
       <p id="auth-error" role="alert"></p>
       <button id="auth-submit" class="primary" type="submit">登录账号 ↗</button>
     </form>
-    <p id="auth-note" class="auth-note">本地演示：账号仅保存在此浏览器，无法跨设备使用；清除网站数据会移除账号。请勿使用真实或常用密码。</p>
+    <p id="auth-note" class="auth-note">账号由本站保存，密码以加盐摘要存储。登录状态保留 12 小时。邮箱目前不提供验证或密码找回；原本地演示账号需重新注册。</p>
   </dialog>
   <div id="auth-toast" role="status" hidden></div>
 </body>

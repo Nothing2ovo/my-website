@@ -1,9 +1,6 @@
-// Browser-only prototype. This is not a server authentication or authorization boundary.
+// Same-origin Pages Functions API. Session tokens are only held in HttpOnly cookies.
 (() => {
   'use strict';
-  const USERS = 'model-atlas.demo-users.v1';
-  const SESSION = 'model-atlas.demo-session.v1';
-  const ITERATIONS = 310000;
   const $ = selector => document.querySelector(selector);
   const modal = $('#auth-dialog');
   const form = $('#auth-form');
@@ -12,16 +9,28 @@
   let mode = 'login';
   let busy = false;
   let toastTimer;
-  const encode = bytes => btoa(String.fromCharCode(...bytes));
-  const decode = value => Uint8Array.from(atob(value), c => c.charCodeAt(0));
-  function readUsers() {
-    const value = JSON.parse(localStorage.getItem(USERS) || '[]');
-    if (!Array.isArray(value)) throw new Error('invalid storage');
-    return value;
-  }
-  async function hashPassword(password, salt) {
-    const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveBits']);
-    return encode(new Uint8Array(await crypto.subtle.deriveBits({name:'PBKDF2', hash:'SHA-256', salt, iterations:ITERATIONS}, key, 256)));
+  let revision = 0;
+  let checking = false;
+  async function api(action, body) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 15000);
+    try {
+      const response = await fetch(`/api/auth/${action}`, {
+        method:body === undefined ? 'GET' : 'POST', credentials:'same-origin',
+        cache:'no-store', signal:controller.signal,
+        headers:body === undefined ? {} : {'Content-Type':'application/json'},
+        body:body === undefined ? undefined : JSON.stringify(body)
+      });
+      if (!(response.headers.get('Content-Type') || '').includes('application/json'))
+        throw new Error('账号服务未部署，请通过 Cloudflare Pages 网站访问。');
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || '操作失败，请稍后重试。');
+      return data;
+    } catch (err) {
+      if (err.name === 'AbortError') throw new Error('请求超时，请重试；注册前可先尝试登录。');
+      if (err instanceof TypeError) throw new Error('无法连接账号服务，请检查网络后重试。');
+      throw err;
+    } finally { clearTimeout(timer); }
   }
   function notify(message) {
     const toast = $('#auth-toast');
@@ -37,13 +46,16 @@
     $('#user-name').textContent = user ? user.name : '';
     $('.user-avatar').textContent = user ? Array.from(user.name)[0] : '';
   }
-  function restoreSession() {
+  async function restoreSession() {
+    if (busy || checking) return;
+    checking = true;
+    const current = revision;
     try {
-      const session = JSON.parse(sessionStorage.getItem(SESSION) || 'null');
-      const user = session && session.expires > Date.now() && readUsers().find(u => u.account === session.account);
-      showUser(user || null);
-      if (!user) sessionStorage.removeItem(SESSION);
-    } catch { showUser(null); }
+      const data = await api('me');
+      if (current === revision) showUser(data.user);
+    } catch {
+      // A network failure does not prove that the server session has expired.
+    } finally { checking = false; }
   }
   function changeMode(next) {
     mode = next;
@@ -51,9 +63,11 @@
     error.textContent = '';
     const register = mode === 'register';
     $('#auth-title').textContent = register ? '开启你的 AI 探索' : '欢迎回来';
-    $('#auth-subtitle').textContent = register ? '创建一个本地演示账号，体验注册流程。' : '登录模型之间，继续你的 AI 探索。';
+    $('#auth-subtitle').textContent = register ? '创建你的账号，开始探索 AI 的更多可能。' : '登录模型之间，继续你的 AI 探索。';
     $('#name-field').hidden = !register;
     $('#confirm-field').hidden = !register;
+    $('#email-field').hidden = !register;
+    $('#auth-email').required = register;
     $('#auth-name').required = register;
     $('#auth-confirm').required = register;
     $('#auth-password').autocomplete = register ? 'new-password' : 'current-password';
@@ -88,55 +102,42 @@
     e.preventDefault();
     if (busy || !form.reportValidity()) return;
     error.textContent = '';
-    if (!globalThis.crypto?.subtle) {
-      error.textContent = '此环境不支持密码处理，请通过 localhost 或 HTTPS 打开页面。';
-      return;
-    }
     const account = $('#auth-account').value.trim().toLowerCase();
     const password = $('#auth-password').value;
     const name = $('#auth-name').value.trim();
+    const email = $('#auth-email').value.trim();
     if (mode === 'register' && name.length < 2) { error.textContent = '请输入至少 2 个字符的昵称。'; $('#auth-name').focus(); return; }
     if (mode === 'register' && password !== $('#auth-confirm').value) { error.textContent = '两次输入的密码不一致，请重新确认。'; $('#auth-confirm').focus(); return; }
     busy = true;
+    revision++;
     // Prevent mode changes while password derivation is in progress.
     const controls = [...modal.querySelectorAll('input, button')];
     controls.forEach(control => { control.disabled = true; });
     submit.textContent = mode === 'register' ? '正在创建…' : '正在登录…';
     try {
-      let user;
-      const users = readUsers();
-      const existing = users.find(u => u.account === account);
-      if (mode === 'register') {
-        if (existing) { error.textContent = '此用户名已注册，请登录或换一个用户名。'; return; }
-        const salt = crypto.getRandomValues(new Uint8Array(16));
-        user = {account, name, salt:encode(salt), hash:await hashPassword(password, salt)};
-        // Re-read after async work to avoid overwriting changes made in another tab.
-        const current = readUsers();
-        if (current.some(u => u.account === account)) { error.textContent = '此用户名已注册，请登录。'; return; }
-        localStorage.setItem(USERS, JSON.stringify([...current, user]));
-      } else {
-        const salt = existing ? decode(existing.salt) : crypto.getRandomValues(new Uint8Array(16));
-        const hash = await hashPassword(password, salt);
-        if (!existing || hash !== existing.hash) { error.textContent = '用户名或密码不正确，请重试。'; return; }
-        user = existing;
-      }
-      sessionStorage.setItem(SESSION, JSON.stringify({account:user.account, expires:Date.now() + 12 * 60 * 60 * 1000}));
-      showUser(user);
+      const data = await api(mode, mode === 'register' ? {account, password, name, email} : {account, password});
+      showUser(data.user);
       modal.close();
       notify(mode === 'register' ? '注册成功，已为你登录。' : '登录成功，欢迎回来。');
-    } catch {
-      error.textContent = '无法读取或保存本地账号，请检查浏览器的网站存储权限后重试。';
+    } catch (err) {
+      error.textContent = err.message;
     } finally {
       busy = false;
       controls.forEach(control => { control.disabled = false; });
       submit.textContent = mode === 'register' ? '创建账号 ↗' : '登录账号 ↗';
     }
   });
-  $('#logout').addEventListener('click', () => {
-    try { sessionStorage.removeItem(SESSION); showUser(null); notify('已退出登录。'); }
-    catch { notify('暂时无法退出，请检查浏览器存储权限。'); }
+  $('#logout').addEventListener('click', async () => {
+    if (busy) return;
+    busy = true;
+    revision++;
+    $('#logout').disabled = true;
+    try { await api('logout', {}); showUser(null); notify('已退出登录。'); }
+    catch (err) { notify(err.message); }
+    finally { busy = false; $('#logout').disabled = false; }
   });
-  window.addEventListener('storage', restoreSession);
+  // Remove obsolete local demo credentials; they are never uploaded or treated as server accounts.
+  try { localStorage.removeItem('model-atlas.demo-users.v1'); sessionStorage.removeItem('model-atlas.demo-session.v1'); } catch {}
   window.addEventListener('pageshow', restoreSession);
   document.addEventListener('visibilitychange', () => { if (!document.hidden) restoreSession(); });
   restoreSession();

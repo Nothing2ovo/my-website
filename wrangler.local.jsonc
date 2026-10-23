@@ -1,0 +1,11 @@
+{
+  // Local development only; Pages production bindings stay in the dashboard.
+  "name": "model-atlas-local",
+  "pages_build_output_dir": "./dist",
+  "compatibility_date": "2026-10-23",
+  "d1_databases": [{
+    "binding": "DB",
+    "database_name": "user-db",
+    "database_id": "00000000-0000-0000-0000-000000000000"
+  }]
+}
