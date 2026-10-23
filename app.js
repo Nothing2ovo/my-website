@@ -1,0 +1,30 @@
+const models = [
+  {id:'gpt',name:'ChatGPT',family:'GPT 系列 · OpenAI',company:'OpenAI',icon:'✳',color:'#39745b',tint:'#edf5ef',tagline:'把想法变成作品的通用搭档',description:'将对话、写作与编程融入日常工作，也能探索图像与语音交互。',tags:['通用助手','写作创作','编程推理'],url:'https://chatgpt.com/',source:'https://openai.com/chatgpt/overview/',more:'ChatGPT 是 OpenAI 的对话产品，可用于学习、写作、代码协作和资料整理。GPT 是模型家族名称，ChatGPT 则是体验这些能力的产品入口。',prompt:'请帮我把这份零散的项目笔记整理为一份结构清晰、包含下一步行动的计划。'},
+  {id:'deepseek',name:'DeepSeek',family:'深度求索',company:'DeepSeek',icon:'≈',color:'#5279e9',tint:'#edf2ff',tagline:'从复杂问题中，梳理清晰思路',description:'提供对话与推理能力，可用于代码开发、数学问题和知识问答。',tags:['编程推理','通用助手'],url:'https://chat.deepseek.com/',source:'https://www.deepseek.com/',more:'DeepSeek 提供模型、官方对话产品和开发者 API。可以从具体问题入手，探索它在代码、逻辑推理和中文表达方面的使用方式。',prompt:'请逐步解释这段代码的逻辑，指出可能的边界问题，并提出修改建议。'},
+  {id:'claude',name:'Claude',family:'Claude 系列 · Anthropic',company:'Anthropic',icon:'✷',color:'#c78060',tint:'#fbf0e9',tagline:'让文字、文档与代码更有条理',description:'面向写作、文档分析与编程协作，帮你把复杂任务拆解并推进。',tags:['写作创作','编程推理'],url:'https://claude.ai/',source:'https://www.anthropic.com/claude',more:'Claude 是 Anthropic 推出的 AI 助手和模型家族。官方产品覆盖文档处理、内容创作、分析与编程等任务，可结合背景材料一起使用。',prompt:'请阅读这份资料，概括核心论点，区分事实和推测，并列出还需要补充的证据。'},
+  {id:'gemini',name:'Gemini',family:'Gemini 系列 · Google',company:'Google',icon:'✦',color:'#6989d5',tint:'#eef2fc',tagline:'探索 Google 的 AI 助手',description:'通过 Google 官方对话入口，体验问答、内容创作与多模态交互。',tags:['通用助手','搜索研究'],url:'https://gemini.google.com/',source:'https://gemini.google.com/',more:'Gemini 是 Google 的 AI 模型家族与助手品牌。可以在官方网页探索对话与创作；具体功能和关联服务取决于账户、地区及所选方案。',prompt:'请把这个我不熟悉的主题拆成五个知识点，用通俗语言解释，并给出进一步查证的方向。'},
+  {id:'grok',name:'Grok',family:'Grok 系列 · xAI',company:'xAI',icon:'𝕏',color:'#303633',tint:'#f0f1ee',tagline:'跟上世界的新话题与新想法',description:'结合对话、推理和联网搜索，探索网页与 X 平台上的信息。',tags:['搜索研究','通用助手'],url:'https://grok.com/',source:'https://x.ai/grok',more:'Grok 由 xAI 推出。官方介绍包括对话、搜索、推理与内容创作，并提供网页与 X 信息搜索能力。阅读时仍应检查引用内容和发布时间。',prompt:'请搜索这个话题的近期进展，按时间整理信息，并为每个关键事实附上原始来源。'},
+  {id:'qwen',name:'Qwen',family:'通义千问 · 阿里巴巴',company:'Alibaba',icon:'✣',color:'#8a6acb',tint:'#f3eefb',tagline:'多语言、多场景的 AI 伙伴',description:'围绕通义千问模型家族，探索日常问答、内容创作与代码任务。',tags:['通用助手','编程推理'],url:'https://qwen.ai/',source:'https://qwen.ai/qwenchat',more:'Qwen（通义千问）是阿里巴巴的模型家族。官方对话产品提供多种 AI 交互方式，适合从中文或多语言任务入手体验。',prompt:'请用中文解释这个技术概念，再写一段简洁的英文介绍，保持两种语言中的含义一致。'},
+  {id:'kimi',name:'Kimi',family:'Kimi 系列 · 月之暗面',company:'Moonshot AI',icon:'K',color:'#29312c',tint:'#f0f2ec',tagline:'从阅读资料，到推进知识工作',description:'面向知识工作与编程任务，帮助你整理信息、理解资料并形成输出。',tags:['搜索研究','写作创作','编程推理'],url:'https://www.kimi.com/',source:'https://www.kimi.com/',more:'Kimi 是月之暗面（Moonshot AI）的 AI 产品。官方入口面向知识工作与编程等任务，可尝试将文档、任务背景与输出要求结合起来。',prompt:'请把这些参考资料整理成阅读笔记，提取共同观点、分歧和我需要继续追问的问题。'},
+  {id:'doubao',name:'豆包',family:'豆包 · 字节跳动',company:'ByteDance',icon:'◒',color:'#648fb1',tint:'#edf4f7',tagline:'日常生活里，随时聊一聊',description:'字节跳动旗下 AI 助手，从日常问答、学习交流到内容创作。',tags:['通用助手','写作创作'],url:'https://www.doubao.com/chat/',source:'https://www.doubao.com/',more:'豆包是字节跳动旗下 AI 智能助手。可以通过官方网页从学习、生活问答和写作任务开始体验，具体交互功能以页面显示为准。',prompt:'我想学习一项新技能，每天有半小时。请帮我安排一周的入门计划，每天给一个可完成的小练习。'}
+];
+const grid=document.querySelector('#model-grid');
+const search=document.querySelector('#search');
+const dialog=document.querySelector('#detail');
+let filter='全部';
+function render(){
+  const query=search.value.trim().toLowerCase();
+  const visible=models.filter(m=>(filter==='全部'||m.tags.includes(filter))&&[m.name,m.family,m.company,m.description,...m.tags,m.id==='grok'?'gork':''].join(' ').toLowerCase().includes(query));
+  grid.innerHTML=visible.map(m=>`<article class="card" style="--color:${m.color};--tint:${m.tint}"><div class="card-top"><span class="model-icon" aria-hidden="true">${m.icon}</span><span class="company">${m.company}</span></div><h3>${m.name}<small>${m.family}</small></h3><p class="tagline">${m.tagline}</p><p class="description">${m.description}</p><div class="tags">${m.tags.slice(0,2).map(t=>`<span>${t}</span>`).join('')}</div><div class="card-actions"><a class="official" href="${m.url}" target="_blank" rel="noopener noreferrer" aria-label="访问 ${m.name} 官方网站（新窗口）">访问官网<span>↗</span></a><button class="details" data-id="${m.id}" aria-label="了解 ${m.name}">了解更多 ›</button></div></article>`).join('');
+  document.querySelector('#result-count').textContent=`发现 ${visible.length} 个模型`;
+  document.querySelector('#empty').hidden=visible.length>0;
+}
+document.querySelectorAll('[data-filter]').forEach(button=>button.addEventListener('click',()=>{filter=button.dataset.filter;document.querySelectorAll('[data-filter]').forEach(b=>b.classList.toggle('selected',b===button));render();}));
+search.addEventListener('input',render);
+document.querySelector('#reset').addEventListener('click',()=>{search.value='';document.querySelector('[data-filter="全部"]').click();});
+grid.addEventListener('click',e=>{const button=e.target.closest('[data-id]');if(!button)return;const m=models.find(m=>m.id===button.dataset.id);document.querySelector('#detail-content').innerHTML=`<span class="model-icon" style="--color:${m.color};--tint:${m.tint}" aria-hidden="true">${m.icon}</span><h2 id="detail-title">${m.name}</h2><div class="detail-domain">${m.family}</div><p>${m.more}</p><h3>可以这样开始一次对话</h3><p>“${m.prompt}”</p><a class="primary" href="${m.url}" target="_blank" rel="noopener noreferrer">前往官方体验 ↗</a><a class="source-link" href="${m.source}" target="_blank" rel="noopener noreferrer">查看官方介绍与来源 ↗</a>`;dialog.setAttribute('aria-labelledby','detail-title');dialog.showModal();document.body.classList.add('modal-open');});
+document.querySelector('.close').addEventListener('click',()=>dialog.close());
+dialog.addEventListener('click',e=>{if(e.target===dialog){const box=dialog.getBoundingClientRect();if(e.clientX<box.left||e.clientX>box.right||e.clientY<box.top||e.clientY>box.bottom)dialog.close();}});
+dialog.addEventListener('close',()=>document.body.classList.remove('modal-open'));
+document.addEventListener('keydown',e=>{if(e.key==='/'&&!['INPUT','TEXTAREA'].includes(document.activeElement.tagName)&&!document.querySelector('dialog[open]')){e.preventDefault();search.focus();}});
+render();
