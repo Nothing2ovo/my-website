@@ -2,17 +2,18 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="在模型之间与 AI 对话，整理想法、理解知识、获得灵感。">
+  <meta name="description" content="在模型之间与 AI 对话，整理想法、理解知识、获得灵感，向下探索主流大模型和官方入口。">
   <meta name="theme-color" content="#f7f8f4"><title>AI 对话 · 模型之间</title>
   <link rel="stylesheet" href="style.css"><link rel="stylesheet" href="chat.css">
-  <script src="chat.js" defer></script><script src="auth.js" defer></script>
+  <script src="chat.js" defer></script><script src="app.js" defer></script><script src="auth.js" defer></script>
 </head>
 <body class="chat-page">
   <header class="header chat-header">
     <a class="brand" href="/" aria-label="模型之间首页"><span class="brand-mark">✳</span><span>模型之间</span></a>
-    <div class="account-area"><a class="guide-link" href="models.html">模型指南</a><button id="open-login" class="login-link" type="button">登录</button><button id="open-register" class="primary account-register" type="button">注册</button><div id="signed-in" hidden><span class="user-avatar" aria-hidden="true"></span><span id="user-name"></span><button id="logout" class="login-link" type="button">退出</button></div></div>
+    <div class="account-area"><a class="guide-link" href="#explore">探索模型 ↓</a><button id="open-login" class="login-link" type="button">登录</button><button id="open-register" class="primary account-register" type="button">注册</button><div id="signed-in" hidden><span class="user-avatar" aria-hidden="true"></span><span id="user-name"></span><button id="logout" class="login-link" type="button">退出</button></div></div>
   </header>
-  <main class="chat-workspace">
+  <main>
+  <section id="chat" class="chat-workspace" aria-label="AI 对话">
     <aside class="chat-sidebar" aria-label="对话记录">
       <button id="new-chat" class="primary new-chat" type="button">＋ 新建对话</button>
       <div id="history" class="history"></div>
@@ -32,7 +33,16 @@
         <div class="suggestions"><button type="button" data-prompt="请用生活中的例子解释，大语言模型是如何工作的？">解释一个概念</button><button type="button" data-prompt="请帮我设计一个每天30分钟的一周Python入门学习计划。">制定学习计划</button><button type="button" data-prompt="请给我五个适合个人开发的AI网站创意。">寻找灵感</button></div>
       </div>
     </section>
+  </section>
+    <section id="explore" class="explore wrap">
+      <div class="section-head"><h2>探索模型</h2><a class="back-to-chat" href="#chat">回到对话 ↑</a></div>
+      <div class="toolbar"><div class="filters" role="group" aria-label="按用途筛选"><button class="selected" data-filter="全部">全部模型 <span>08</span></button><button data-filter="通用助手">通用助手</button><button data-filter="写作创作">写作创作</button><button data-filter="编程推理">编程推理</button><button data-filter="搜索研究">搜索研究</button></div><label class="search"><span aria-hidden="true">⌕</span><input id="search" type="search" placeholder="搜索模型、公司或用途…" aria-label="搜索模型"><kbd>/</kbd></label></div>
+      <div class="result-line"><span id="result-count" aria-live="polite">发现 8 个模型</span></div>
+      <div id="model-grid" class="model-grid"></div>
+      <div id="empty" class="empty" hidden><span>⌕</span><h3>还没找到匹配的模型</h3><p>试试其他关键词，或清除筛选条件。</p><button id="reset" class="primary">查看全部模型</button></div>
+    </section>
   </main>
+  <dialog id="detail"><button class="close" aria-label="关闭详情" type="button">×</button><div id="detail-content"></div></dialog>
   <dialog id="chat-info" aria-labelledby="info-title"><button id="close-info" class="close" aria-label="关闭使用说明" type="button">×</button><h2 id="info-title">使用说明</h2><p>登录后可对话，每段对话使用一个模型。切换模型请新建对话。</p><p>所有模型共用每日额度，北京时间 08:00 重置。发送后即计入次数；Cloudflare 免费额度耗尽时可能暂时无法使用。</p><p>消息由 Cloudflare Workers AI 处理，历史记录保存在本站，可在侧边栏删除。AI 回答可能有误，请核对重要信息。</p><p>Enter 发送，Shift + Enter 换行。单次最多 2000 字符。</p></dialog>
   <dialog id="auth-dialog" aria-labelledby="auth-title" aria-describedby="auth-note">
     <button class="close auth-close" type="button" aria-label="关闭账号窗口">×</button>

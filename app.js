@@ -23,7 +23,7 @@ document.querySelectorAll('[data-filter]').forEach(button=>button.addEventListen
 search.addEventListener('input',render);
 document.querySelector('#reset').addEventListener('click',()=>{search.value='';document.querySelector('[data-filter="全部"]').click();});
 grid.addEventListener('click',e=>{const button=e.target.closest('[data-id]');if(!button)return;const m=models.find(m=>m.id===button.dataset.id);document.querySelector('#detail-content').innerHTML=`<span class="model-icon" style="--color:${m.color};--tint:${m.tint}" aria-hidden="true">${m.icon}</span><h2 id="detail-title">${m.name}</h2><div class="detail-domain">${m.family}</div><p>${m.more}</p><h3>可以这样开始一次对话</h3><p>“${m.prompt}”</p><a class="primary" href="${m.url}" target="_blank" rel="noopener noreferrer">前往官方体验 ↗</a><a class="source-link" href="${m.source}" target="_blank" rel="noopener noreferrer">查看官方介绍与来源 ↗</a>`;dialog.setAttribute('aria-labelledby','detail-title');dialog.showModal();document.body.classList.add('modal-open');});
-document.querySelector('.close').addEventListener('click',()=>dialog.close());
+dialog.querySelector('.close').addEventListener('click',()=>dialog.close());
 dialog.addEventListener('click',e=>{if(e.target===dialog){const box=dialog.getBoundingClientRect();if(e.clientX<box.left||e.clientX>box.right||e.clientY<box.top||e.clientY>box.bottom)dialog.close();}});
 dialog.addEventListener('close',()=>document.body.classList.remove('modal-open'));
 document.addEventListener('keydown',e=>{if(e.key==='/'&&!['INPUT','TEXTAREA'].includes(document.activeElement.tagName)&&!document.querySelector('dialog[open]')){e.preventDefault();search.focus();}});
