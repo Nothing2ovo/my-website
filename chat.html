@@ -8,36 +8,34 @@
   <script src="chat.js" defer></script><script src="auth.js" defer></script>
 </head>
 <body class="chat-page">
-  <header class="header wrap">
-    <a class="brand" href="index.html" aria-label="模型之间首页"><span class="brand-mark">✳</span><span>模型之间<small>MODEL ATLAS</small></span></a>
-    <nav aria-label="主导航"><a href="index.html#explore">探索模型</a><a class="active" href="chat.html" aria-current="page">AI 对话</a><a href="index.html#guide">使用指南</a></nav>
-    <div class="account-area"><button id="open-login" class="login-link" type="button">登录</button><button id="open-register" class="primary account-register" type="button">注册账号 ↗</button><div id="signed-in" hidden><span class="user-avatar" aria-hidden="true"></span><span id="user-name"></span><button id="logout" class="login-link" type="button">退出</button></div></div>
+  <header class="header chat-header">
+    <a class="brand" href="/" aria-label="模型之间首页"><span class="brand-mark">✳</span><span>模型之间</span></a>
+    <div class="account-area"><a class="guide-link" href="models.html">模型指南</a><button id="open-login" class="login-link" type="button">登录</button><button id="open-register" class="primary account-register" type="button">注册</button><div id="signed-in" hidden><span class="user-avatar" aria-hidden="true"></span><span id="user-name"></span><button id="logout" class="login-link" type="button">退出</button></div></div>
   </header>
-  <main class="chat-workspace wrap">
+  <main class="chat-workspace">
     <aside class="chat-sidebar" aria-label="对话记录">
-      <div class="eyebrow">A SPACE FOR YOUR IDEAS</div><button id="new-chat" class="primary new-chat" type="button">新建对话 <span>＋</span></button>
-      <div class="history-label">最近的探索</div><div id="history" class="history"><p>登录后查看历史记录。</p></div>
-      <footer>每一个好问题，<br>都是探索的开始。<br><a href="index.html">返回模型目录 ↗</a></footer>
+      <button id="new-chat" class="primary new-chat" type="button">＋ 新建对话</button>
+      <div id="history" class="history"></div>
+      <button id="show-info" class="info-button" type="button">使用说明</button>
     </aside>
     <section class="chat-main" aria-label="AI 聊天窗口">
-      <div class="chat-topbar"><h1 id="conversation-title">AI 对话</h1><span class="model-pill" id="model-name">OpenAI</span></div>
+      <div class="chat-topbar"><span id="conversation-title"></span><span id="model-name" class="sr-only">Qwen3</span><span id="quota-label"></span></div>
       <div id="chat-content" class="chat-content">
-        <div class="chat-welcome" id="chat-welcome"><span class="brand-mark" aria-hidden="true">✳</span><h2>让想法，在对话中生长。</h2><p>从一个问题出发，试着理解、创造、发现。<br>今天，你想探索什么？</p>
-          <div class="suggestions"><button type="button" data-prompt="请用生活中的例子解释，大语言模型是如何工作的？">理解一个概念<br>大语言模型是如何工作的？ ↗</button><button type="button" data-prompt="请帮我设计一个每天30分钟的一周Python入门学习计划。">安排学习计划<br>一周入门 Python ↗</button><button type="button" data-prompt="请给我五个适合个人开发的AI网站创意，并说明各自解决的问题。">寻找新的灵感<br>探索 AI 网站创意 ↗</button><button type="button" data-prompt="我想写一封简洁、礼貌的工作邮件，请先询问我需要提供哪些背景信息。">一起写点什么<br>从一封工作邮件开始 ↗</button></div>
-        </div>
+        <div id="chat-welcome" class="chat-welcome"><span class="brand-mark" aria-hidden="true">✳</span><h2>今天，想聊点什么？</h2></div>
         <div id="messages" role="log" aria-label="对话消息" aria-live="off"></div>
       </div>
       <div class="chat-bottom">
-        <div id="chat-notice" class="chat-notice" role="status"></div>
-        <form id="chat-form" class="composer"><label for="chat-input" class="sr-only">你的问题</label><textarea id="chat-input" maxlength="2000" rows="2" placeholder="输入你的问题，让探索开始…" aria-describedby="chat-privacy"></textarea><div class="composer-row"><span id="char-count">0 / 2000</span><div class="composer-actions"><button id="stop-chat" class="stop-chat" type="button" hidden>■ 停止生成</button><button id="send-chat" class="primary" type="submit">发送 ↗</button></div></div></form>
-        <div class="chat-meta"><span id="quota-label">登录后查看今日额度</span><span>Enter 发送 · Shift + Enter 换行</span></div>
-        <p id="chat-privacy" class="chat-meta">消息将发送给 OpenAI，历史记录保存在本站。AI 回答可能有误，请核对重要信息。每次发送计入额度，失败或停止也可能产生模型费用。</p>
+        <div id="chat-notice" class="chat-notice" role="status" hidden></div>
+        <form id="chat-form" class="composer"><label for="chat-input" class="sr-only">你的问题</label><textarea id="chat-input" maxlength="2000" rows="3" placeholder="有什么想问的？"></textarea>
+          <div class="composer-row"><label class="sr-only" for="model-select">选择模型</label><select id="model-select" aria-label="选择模型"><option value="qwen3">Qwen3</option><option value="glm-flash">GLM 4.7 Flash</option><option value="llama-3.3">Llama 3.3</option></select><span id="char-count" class="sr-only">0 / 2000</span><div class="composer-actions"><button id="stop-chat" class="stop-chat" type="button" hidden>停止</button><button id="send-chat" class="primary" type="submit">发送 ↗</button></div></div>
+        </form>
+        <div class="suggestions"><button type="button" data-prompt="请用生活中的例子解释，大语言模型是如何工作的？">解释一个概念</button><button type="button" data-prompt="请帮我设计一个每天30分钟的一周Python入门学习计划。">制定学习计划</button><button type="button" data-prompt="请给我五个适合个人开发的AI网站创意。">寻找灵感</button></div>
       </div>
     </section>
   </main>
+  <dialog id="chat-info" aria-labelledby="info-title"><button id="close-info" class="close" aria-label="关闭使用说明" type="button">×</button><h2 id="info-title">使用说明</h2><p>登录后可对话，每段对话使用一个模型。切换模型请新建对话。</p><p>所有模型共用每日额度，北京时间 08:00 重置。发送后即计入次数；Cloudflare 免费额度耗尽时可能暂时无法使用。</p><p>消息由 Cloudflare Workers AI 处理，历史记录保存在本站，可在侧边栏删除。AI 回答可能有误，请核对重要信息。</p><p>Enter 发送，Shift + Enter 换行。单次最多 2000 字符。</p></dialog>
   <dialog id="auth-dialog" aria-labelledby="auth-title" aria-describedby="auth-note">
     <button class="close auth-close" type="button" aria-label="关闭账号窗口">×</button>
-    <div class="eyebrow">YOUR NEXT CHAPTER</div>
     <h2 id="auth-title">欢迎回来</h2>
     <p class="auth-subtitle" id="auth-subtitle">登录模型之间，继续你的 AI 探索。</p>
     <div class="auth-switch" role="group" aria-label="选择登录或注册"><button type="button" data-auth-mode="login" aria-pressed="true">登录</button><button type="button" data-auth-mode="register" aria-pressed="false">注册</button></div>
@@ -50,7 +48,7 @@
       <p id="auth-error" role="alert"></p>
       <button id="auth-submit" class="primary" type="submit">登录账号 ↗</button>
     </form>
-    <p id="auth-note" class="auth-note">账号由本站保存，密码以加盐摘要存储。登录状态保留 12 小时。邮箱目前不提供验证或密码找回；原本地演示账号需重新注册。</p>
+    <p id="auth-note" class="auth-note">邮箱暂不用于验证或找回密码。</p>
   </dialog>
   <dialog id="delete-chat" class="delete-dialog" aria-labelledby="delete-title"><h2 id="delete-title">删除对话？</h2><p>此操作会删除该对话及其消息，无法恢复。</p><div class="delete-actions"><button id="cancel-delete" class="stop-chat" type="button">保留</button><button id="confirm-delete" class="primary delete-confirm" type="button">删除对话</button></div></dialog>
   <div id="auth-toast" role="status" hidden></div>

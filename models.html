@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="认识 ChatGPT、DeepSeek、Grok 等主流 AI，探索不同用途，直达官方入口。">
+  <meta name="theme-color" content="#f7f8f4">
+  <title>模型之间 · AI 大模型探索指南</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="app.js" defer></script>
+  <script src="auth.js" defer></script>
+</head>
+<body>
+  <header class="header wrap">
+    <a class="brand" href="/" aria-label="模型之间首页"><span class="brand-mark">✳</span><span>模型之间<small>MODEL ATLAS</small></span></a>
+    <nav aria-label="主导航"><a class="active" href="#explore">探索模型</a><a href="/">AI 对话 ↗</a><a href="#guide">使用指南</a><a href="#about">关于本站</a></nav>
+    <div class="account-area"><button id="open-login" class="login-link" type="button">登录</button><button id="open-register" class="primary account-register" type="button">注册账号 ↗</button><div id="signed-in" hidden><span class="user-avatar" aria-hidden="true"></span><span id="user-name"></span><button id="logout" class="login-link" type="button">退出</button></div></div>
+  </header>
+  <main>
+    <section class="hero wrap">
+      <div class="hero-copy">
+        <div class="eyebrow"><span class="status-dot"></span> 一份持续探索的 AI 地图</div>
+        <h1>大模型的世界，<br>从这里<span class="serif">开始探索。</span></h1>
+        <p>从灵感到答案，从写作到代码。<br>认识不同的 AI，找到更适合你的那一个。</p>
+        <a class="primary" href="#explore">探索全部模型 <span>↘</span></a>
+        <div class="hero-note"><span class="tiny-stack">✳ <b>✦</b> ◒</span> 8 款主流 AI · 官方入口直达</div>
+      </div>
+      <div class="atlas" aria-label="主流 AI 模型生态示意图" role="img">
+        <div class="atlas-grid"></div><div class="orbit orbit-one"></div><div class="orbit orbit-two"></div><div class="axis axis-x"></div><div class="axis axis-y"></div>
+        <span class="atlas-label label-top">A WORLD OF INTELLIGENCE</span>
+        <div class="orbit-node node-gpt"><span>✳</span><small>ChatGPT</small></div>
+        <div class="orbit-node node-deep"><span>≈</span><small>DeepSeek</small></div>
+        <div class="orbit-node node-claude"><span>✷</span><small>Claude</small></div>
+        <div class="orbit-node node-gemini"><span>✦</span><small>Gemini</small></div>
+        <div class="orbit-node node-grok"><span>𝕏</span><small>Grok</small></div>
+        <div class="atlas-center"><span>AI</span><small>无限可能，等你发现</small></div>
+        <span class="spark spark-one">+</span><span class="spark spark-two">+</span><span class="atlas-label label-bottom">不同的模型，共同拓展想象的边界</span>
+      </div>
+    </section>
+    <section id="explore" class="explore wrap">
+      <div class="section-head"><div><div class="eyebrow">THE MODEL COLLECTION</div><h2>认识你的下一位 AI 搭档<span> / 01</span></h2></div><span class="collection-note">各有所长，按需选择 <span>↙</span></span></div>
+      <div class="toolbar"><div class="filters" role="group" aria-label="按用途筛选"><button class="selected" data-filter="全部">全部模型 <span>08</span></button><button data-filter="通用助手">通用助手</button><button data-filter="写作创作">写作创作</button><button data-filter="编程推理">编程推理</button><button data-filter="搜索研究">搜索研究</button></div><label class="search"><span aria-hidden="true">⌕</span><input id="search" type="search" placeholder="搜索模型、公司或用途…" aria-label="搜索模型"><kbd>/</kbd></label></div>
+      <div class="result-line"><span id="result-count" aria-live="polite">发现 8 个模型</span><span>不做排名，只为帮你更好地了解</span></div>
+      <div id="model-grid" class="model-grid"></div>
+      <div id="empty" class="empty" hidden><span>⌕</span><h3>还没找到匹配的模型</h3><p>试试其他关键词，或清除筛选条件。</p><button id="reset" class="primary">查看全部模型</button></div>
+    </section>
+    <section id="guide" class="guide wrap"><div class="guide-intro"><div class="eyebrow">A LITTLE GUIDANCE</div><h2>选 AI，从你的需求开始。</h2><p>不必寻找“全能冠军”。<br>带着同一个问题，试试不同的思路。</p><a href="#explore">回到模型目录 ↗</a></div><div class="steps"><article><span>01</span><div><h3>先明确，你想完成什么</h3><p>写一篇文章、理解一份资料，还是调试一段代码？从具体任务出发，更容易找到合适的工具。</p></div></article><article><span>02</span><div><h3>给 AI 一点背景与示例</h3><p>说明你的目标、已有信息和期望格式。清晰的描述，往往比反复更换模型更有帮助。</p></div></article><article><span>03</span><div><h3>对比结果，也核对来源</h3><p>用同一任务体验不同模型。对于重要事实，回到原始资料验证，再决定如何使用答案。</p></div></article></div></section>
+    <aside class="info wrap"><span>↗</span><p><strong>从官方入口，开始你的探索。</strong>本站收录模型家族及其官方对话产品，不代表性能排名。具体版本、功能与可用范围以官方页面为准，部分服务可能需要登录或订阅。</p></aside>
+  </main>
+  <footer id="about" class="wrap"><div><a class="footer-brand" href="#">✳ 模型之间</a><p>让复杂的 AI 世界，多一点清晰。</p></div><div class="footer-meta"><span>独立制作的 AI 探索指南 · 非官方站点</span><span>入口核对于 2026.10.23 <i>·</i> 保持好奇，持续探索 ↗</span></div></footer>
+  <dialog id="detail"><button class="close" aria-label="关闭详情">×</button><div id="detail-content"></div></dialog>
+  <dialog id="auth-dialog" aria-labelledby="auth-title" aria-describedby="auth-note">
+    <button class="close auth-close" type="button" aria-label="关闭账号窗口">×</button>
+    <div class="eyebrow">YOUR NEXT CHAPTER</div>
+    <h2 id="auth-title">欢迎回来</h2>
+    <p class="auth-subtitle" id="auth-subtitle">登录模型之间，继续你的 AI 探索。</p>
+    <div class="auth-switch" role="group" aria-label="选择登录或注册"><button type="button" data-auth-mode="login" aria-pressed="true">登录</button><button type="button" data-auth-mode="register" aria-pressed="false">注册</button></div>
+    <form id="auth-form">
+      <div id="name-field" hidden><label for="auth-name">昵称</label><input id="auth-name" name="nickname" autocomplete="nickname" minlength="2" maxlength="20" placeholder="怎么称呼你？"></div>
+      <div id="email-field" hidden><label for="auth-email">邮箱</label><input id="auth-email" name="email" type="email" autocomplete="email" maxlength="254" placeholder="你的邮箱地址"></div>
+      <label for="auth-account">用户名</label><input id="auth-account" name="username" autocomplete="username" required pattern="[A-Za-z0-9_]{3,32}" minlength="3" maxlength="32" placeholder="3–32 位字母、数字或下划线" aria-describedby="account-hint"><small id="account-hint">用户名不区分大小写，用于登录。</small>
+      <label for="auth-password">密码</label><div class="password-field"><input id="auth-password" name="password" type="password" autocomplete="current-password" required minlength="8" maxlength="128" placeholder="请输入 8–128 位密码"><button id="toggle-password" type="button" aria-label="显示密码" aria-pressed="false">显示</button></div>
+      <div id="confirm-field" hidden><label for="auth-confirm">确认密码</label><input id="auth-confirm" name="confirm" type="password" autocomplete="new-password" minlength="8" maxlength="128" placeholder="再输入一次密码"></div>
+      <p id="auth-error" role="alert"></p>
+      <button id="auth-submit" class="primary" type="submit">登录账号 ↗</button>
+    </form>
+    <p id="auth-note" class="auth-note">账号由本站保存，密码以加盐摘要存储。登录状态保留 12 小时。邮箱目前不提供验证或密码找回；原本地演示账号需重新注册。</p>
+  </dialog>
+  <div id="auth-toast" role="status" hidden></div>
+</body>
+</html>

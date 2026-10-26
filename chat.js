@@ -1,7 +1,13 @@
 (() => {
   'use strict';
   const $=selector=>document.querySelector(selector);
-  let user=null,conversationId=null,busy=false,aborter=null,version=0,quota=null;
+  let user=null,conversationId=null,busy=false,aborter=null,version=0,quota=null,lockedModel=false;
+  const models=[{id:'qwen3',name:'Qwen3'},{id:'glm-flash',name:'GLM 4.7 Flash'},{id:'llama-3.3',name:'Llama 3.3'}];
+  function selectModel(id){
+    const found=models.find(model=>model.id===id);
+    $('#model-select').value=found?found.id:'qwen3';
+    $('#model-name').textContent=found?found.name:'历史模型';
+  }
   const statuses={error:'回答中断',stopped:'已停止',incomplete:'回答未完成',generating:'生成中或连接已中断',pending:'未完成'};
   function notice(text,error=false,login=false){
     const box=$('#chat-notice'); box.replaceChildren(); box.classList.toggle('error',error); box.hidden=!text;
@@ -16,14 +22,18 @@
     return data;
   }
   function controls(){
-    $('#send-chat').disabled=busy||!user||!quota?.configured||!quota?.available||quota?.remaining<=0;
+    $('#send-chat').disabled=busy||!!user&&(!quota?.configured||!quota?.available||quota?.remaining<=0);
+    $('#send-chat').textContent=user?'发送 ↗':'登录后发送';
     $('#stop-chat').hidden=!busy; $('#chat-input').disabled=busy;
     $('#new-chat').disabled=busy;
+    $('#model-select').disabled=busy||lockedModel;
+    $('#model-select').title=lockedModel?'新建对话可切换模型':'选择模型';
     document.querySelectorAll('.history button').forEach(button=>button.disabled=busy);
   }
-  function empty(){ $('#messages').replaceChildren();$('#chat-welcome').hidden=false;conversationId=null;$('#conversation-title').textContent='AI 对话'; }
+  function empty(){ $('#messages').replaceChildren();$('#chat-welcome').hidden=false;document.body.classList.remove('has-messages');conversationId=null;lockedModel=false;$('#conversation-title').textContent='';controls(); }
   function message(role,text='',status=''){
     $('#chat-welcome').hidden=true;
+    document.body.classList.add('has-messages');
     const article=document.createElement('article');article.className=`message ${role}`;
     const avatar=document.createElement('span');avatar.className='message-avatar';avatar.textContent=role==='user'?'你':'✳';avatar.setAttribute('aria-hidden','true');
     const body=document.createElement('div');body.className='message-body';
@@ -39,9 +49,8 @@
     if(!user)return;const current=version;
     try{
       const data=await api('/api/chat/quota');if(current!==version)return;quota=data;
-      $('#model-name').textContent=data.model;
-      $('#quota-label').textContent=`今日剩余 ${data.remaining} / ${data.limit} 次 · 北京时间 08:00 重置`;
-      if(!data.configured)notice('AI 服务尚未启用，等待管理员配置模型 API Key。');
+      $('#quota-label').textContent=`今日剩余 ${data.remaining} 次`;
+      if(!data.configured)notice('AI 服务暂未连接，请联系管理员。');
       else if(!data.available)notice('本站今日额度已用完，明天再来聊聊。');
       else if(!data.remaining)notice('你已用完今日对话额度，明天继续。');
       controls();
@@ -56,7 +65,7 @@
       for(const item of data.conversations){
         const row=document.createElement('div');row.className=`history-item${item.id===conversationId?' selected':''}`;
         const open=document.createElement('button');open.className='history-open';open.textContent=item.title;open.title=item.title;
-        open.onclick=async()=>{if(busy)return;const rev=++version;try{const detail=await api(`/api/conversations/${item.id}`);if(rev!==version)return;empty();conversationId=item.id;$('#conversation-title').textContent=item.title;for(const m of detail.messages)message(m.role,m.content,m.status);await history();scroll();}catch(err){notice(err.message,true);}};
+        open.onclick=async()=>{if(busy)return;const rev=++version;try{const detail=await api(`/api/conversations/${item.id}`);if(rev!==version)return;empty();conversationId=item.id;const previous=detail.conversation.model||detail.messages.find(m=>m.role==='assistant')?.model;lockedModel=true;selectModel(previous);$('#conversation-title').textContent=item.title;for(const m of detail.messages)message(m.role,m.content,m.status);if(!models.some(m=>m.id===previous))notice('这段历史使用旧模型，请新建对话。');await history();scroll();controls();}catch(err){notice(err.message,true);}};
         const remove=document.createElement('button');remove.className='history-delete';remove.textContent='×';remove.setAttribute('aria-label',`删除对话：${item.title}`);
         remove.onclick=()=>askDelete(item);
         row.append(open,remove);list.append(row);
@@ -73,10 +82,11 @@
   };
   async function changedUser(next){
     if(user?.id===next?.id)return;
+    const draft=!user&&next?$('#chat-input').value:'';
     version++;aborter?.abort();user=next;quota=null;empty();$('#history').replaceChildren();
-    $('#chat-input').value='';$('#char-count').textContent='0 / 2000';$('#model-name').textContent='OpenAI';
+    $('#chat-input').value=draft;$('#char-count').textContent=`${draft.length} / 2000`;selectModel($('#model-select').value);
     if($('#delete-chat').open)$('#delete-chat').close();
-    if(!user){notice('登录后即可开始聊天，历史记录会保存在你的账号下。',false,true);$('#quota-label').textContent='登录后查看今日额度';}
+    if(!user){notice('登录后开始对话',false,true);$('#quota-label').textContent='';}
     else {notice('正在连接 AI 服务…');await Promise.all([history(),refreshQuota()]);if(quota?.configured&&quota.available&&quota.remaining>0)notice('');}
     controls();
   }
@@ -88,14 +98,15 @@
   $('#stop-chat').onclick=()=>aborter?.abort();
   $('#chat-form').addEventListener('submit',async event=>{
     event.preventDefault();const text=$('#chat-input').value.trim();
-    if(busy||!text||!user)return;
+    if(busy||!text)return;
+    if(!user){$('#open-login').click();return;}
     if(!quota?.configured||quota.remaining<=0||!quota.available){await refreshQuota();return;}
     const current=version;busy=true;aborter=new AbortController();controls();notice('');
     message('user',text);const reply=message('assistant','正在思考…');let output='',terminal=false;
     $('#chat-input').value='';$('#char-count').textContent='0 / 2000';scroll();
     try{
       const response=await fetch('/api/chat',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({message:text,conversationId}),signal:aborter.signal});
+        body:JSON.stringify({message:text,conversationId,model:$('#model-select').value}),signal:aborter.signal});
       if(!response.ok){const data=await response.json().catch(()=>({}));if(response.status===401)changedUser(null);throw new Error(data.error||'发送失败，请稍后重试。');}
       if(!(response.headers.get('Content-Type')||'').includes('text/event-stream'))throw new Error('对话接口未部署，请联系管理员。');
       const reader=response.body.getReader();const decoder=new TextDecoder();let buffer='';
@@ -107,7 +118,7 @@
             const kind=frame.split('\n').find(line=>line.startsWith('event:'))?.slice(6).trim();
             const data=JSON.parse(frame.split('\n').filter(line=>line.startsWith('data:')).map(line=>line.slice(5).trimStart()).join('\n'));
             if(current!==version)continue;
-            if(kind==='meta'){conversationId=data.conversationId;$('#model-name').textContent=data.model;}
+            if(kind==='meta'){conversationId=data.conversationId;lockedModel=true;selectModel(data.model);$('#conversation-title').textContent=data.title||'';}
             if(kind==='delta'){output+=data.text;reply.content.textContent=output;scroll();}
             if(kind==='done'){terminal=true;reply.content.textContent=output||'（模型未返回文字）';}
             if(kind==='error'){terminal=true;reply.content.textContent=output||'未生成回答。';reply.state.textContent=data.message;}
@@ -119,5 +130,8 @@
     }catch(err){if(current===version){reply.content.textContent=output||'未生成回答。';reply.state.textContent=err.name==='AbortError'?'已停止生成，部分回答稍后会保存到历史记录。':err.message;}}
     finally{busy=false;aborter=null;if(current===version){await Promise.all([history(),refreshQuota()]);$('#chat-input').focus();}controls();}
   });
-  notice('登录后即可开始聊天，历史记录会保存在你的账号下。',false,true);controls();
+  $('#model-select').addEventListener('change',()=>selectModel($('#model-select').value));
+  $('#show-info').onclick=()=>$('#chat-info').showModal();
+  $('#close-info').onclick=()=>$('#chat-info').close();
+  notice('');selectModel('qwen3');controls();
 })();

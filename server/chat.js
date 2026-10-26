@@ -2,12 +2,17 @@ import {ApiError, json, sameOrigin, bodyJson, requireUser} from '../functions/ap
 
 const initialized = new WeakMap();
 const enc = new TextEncoder();
-const DEFAULT_MODEL = 'gpt-4.1-mini';
+export const MODELS = [
+  {id:'qwen3',name:'Qwen3',provider:'Qwen',model:'@cf/qwen/qwen3-30b-a3b-fp8'},
+  {id:'glm-flash',name:'GLM 4.7 Flash',provider:'智谱',model:'@cf/zai-org/glm-4.7-flash'},
+  {id:'llama-3.3',name:'Llama 3.3',provider:'Meta',model:'@cf/meta/llama-3.3-70b-instruct-fp8-fast'}
+];
+const DEFAULT_MODEL = MODELS[0].id;
 const OUTPUT_LIMIT = 512;
 const tables = [
   `CREATE TABLE IF NOT EXISTS chat_conversations (
     id TEXT PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    title TEXT NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL)`,
+    title TEXT NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, model TEXT)`,
   'CREATE INDEX IF NOT EXISTS idx_chat_owner ON chat_conversations(user_id, updated_at)',
   `CREATE TABLE IF NOT EXISTS chat_messages (
     id INTEGER PRIMARY KEY AUTOINCREMENT, conversation_id TEXT NOT NULL REFERENCES chat_conversations(id) ON DELETE CASCADE,
@@ -21,9 +26,17 @@ const tables = [
     user_id INTEGER PRIMARY KEY, request_id TEXT NOT NULL, expires_at INTEGER NOT NULL)`
 ];
 async function initialize(db) {
-  if (!initialized.has(db)) initialized.set(db, db.batch(tables.map(sql => db.prepare(sql))).catch(err => {
-    initialized.delete(db); throw err;
-  }));
+  if (!initialized.has(db)) initialized.set(db, (async()=>{
+    await db.batch(tables.map(sql => db.prepare(sql)));
+    const columns=await db.prepare('PRAGMA table_info(chat_conversations)').all();
+    if(!columns.results.some(column=>column.name==='model')) {
+      try { await db.prepare('ALTER TABLE chat_conversations ADD COLUMN model TEXT').run(); }
+      catch(err){
+        const fresh=await db.prepare('PRAGMA table_info(chat_conversations)').all();
+        if(!fresh.results.some(column=>column.name==='model'))throw err;
+      }
+    }
+  })().catch(err=>{initialized.delete(db);throw err;}));
   await initialized.get(db);
 }
 function limit(value, fallback, max) {
@@ -32,7 +45,7 @@ function limit(value, fallback, max) {
 }
 function config(env) {
   return {daily:limit(env.CHAT_DAILY_LIMIT,20,100), global:limit(env.CHAT_GLOBAL_DAILY_LIMIT,200,2000),
-    model:env.OPENAI_MODEL || DEFAULT_MODEL};
+    model:MODELS.some(model=>model.id===env.CHAT_DEFAULT_MODEL)?env.CHAT_DEFAULT_MODEL:DEFAULT_MODEL};
 }
 function day() { return new Date().toISOString().slice(0,10); }
 async function quota(db, userId, env) {
@@ -41,7 +54,7 @@ async function quota(db, userId, env) {
   const settings = config(env);
   return {limit:settings.daily, used:count?.requests || 0, remaining:Math.max(0,settings.daily-(count?.requests || 0)),
     available:(global?.requests || 0) < settings.global, resetsAt:`${new Date(Date.now()+86400000).toISOString().slice(0,10)}T00:00:00Z`,
-    model:settings.model, configured:!!env.OPENAI_API_KEY};
+    model:settings.model, models:MODELS, configured:typeof env.AI?.run==='function'};
 }
 async function owned(db, userId, id) {
   if (typeof id !== 'string' || !/^[\da-f-]{36}$/i.test(id)) throw new ApiError(404,'对话不存在。');
@@ -68,6 +81,15 @@ async function reserve(db, userId, requestId, env) {
     }
   } catch (err) { await release(db,userId,requestId); throw err; }
 }
+async function runAi(env,model,input,signal){
+  let rejectAbort;
+  const stopped=new Promise((resolve,reject)=>{rejectAbort=()=>reject(new Error('Aborted'));});
+  signal.addEventListener('abort',rejectAbort,{once:true});
+  const pending=Promise.resolve().then(()=>env.AI.run(model,input));
+  pending.then(result=>{if(signal.aborted){const stream=result instanceof Response?result.body:result;stream?.cancel?.().catch(()=>{});}},()=>{});
+  try{if(signal.aborted)throw new Error('Aborted');return await Promise.race([pending,stopped]);}
+  finally{signal.removeEventListener('abort',rejectAbort);}
+}
 
 // SSE frames can cross chunks, contain CRLF, or contain multiple data lines.
 export async function* parseEvents(body) {
@@ -82,7 +104,7 @@ export async function* parseEvents(body) {
       while ((end=buffer.indexOf('\n\n')) >= 0) {
         const frame=buffer.slice(0,end); buffer=buffer.slice(end+2);
         const data=frame.split('\n').filter(line=>line.startsWith('data:')).map(line=>line.slice(5).trimStart()).join('\n');
-        if (data && data !== '[DONE]') yield JSON.parse(data);
+        if (data) yield data==='[DONE]' ? {type:'done'} : JSON.parse(data);
       }
       if (done) break;
     }
@@ -91,10 +113,23 @@ export async function* parseEvents(body) {
 
 async function generate(context, db, user, body) {
   const {env,request} = context;
-  if (!env.OPENAI_API_KEY) throw new ApiError(503,'AI 服务尚未启用：管理员需要配置 OPENAI_API_KEY。');
+  if (typeof env.AI?.run!=='function') throw new ApiError(503,'AI 服务尚未启用，请联系管理员检查 Workers AI 绑定。');
   const message=typeof body.message === 'string' ? body.message.trim() : '';
   if (!message || message.length>2000) throw new ApiError(400,'请输入 1–2000 个字符的问题。');
   let conversation=body.conversationId ? await owned(db,user.id,body.conversationId) : null;
+  let selected=body.model || config(env).model;
+  if(conversation){
+    const previous=await db.prepare("SELECT model FROM chat_messages WHERE conversation_id = ? AND role='assistant' ORDER BY id LIMIT 1").bind(conversation.id).first();
+    const saved=conversation.model || previous?.model;
+    if(saved){
+      const available=MODELS.find(model=>model.id===saved||model.model===saved);
+      if(!available)throw new ApiError(409,'这段历史使用旧模型，请新建对话。');
+      if(body.model && body.model!==available.id)throw new ApiError(409,'切换模型请新建对话。');
+      selected=available.id;
+    }
+  }
+  const model=MODELS.find(model=>model.id===selected);
+  if(!model)throw new ApiError(400,'请选择可用模型。');
   let history=[];
   if (conversation) {
     const count=await db.prepare('SELECT COUNT(*) AS n FROM chat_messages WHERE conversation_id = ?').bind(conversation.id).first();
@@ -112,11 +147,11 @@ async function generate(context, db, user, body) {
     const now=Date.now();
     if (!conversation) conversation={id:crypto.randomUUID(),title:Array.from(message).slice(0,30).join(''),user_id:user.id,created_at:now,updated_at:now};
     const writes=[
-      db.prepare('INSERT OR IGNORE INTO chat_conversations(id,user_id,title,created_at,updated_at) VALUES (?,?,?,?,?)')
-        .bind(conversation.id,user.id,conversation.title,conversation.created_at,now),
+      db.prepare('INSERT OR IGNORE INTO chat_conversations(id,user_id,title,created_at,updated_at,model) VALUES (?,?,?,?,?,?)')
+        .bind(conversation.id,user.id,conversation.title,conversation.created_at,now,model.id),
       db.prepare("INSERT INTO chat_messages(conversation_id,role,content,status,created_at) VALUES (?,'user',?,'pending',?)").bind(conversation.id,message,now),
       db.prepare("INSERT INTO chat_messages(conversation_id,role,content,status,model,created_at) VALUES (?,'assistant','','generating',?,?)")
-        .bind(conversation.id,config(env).model,now)
+        .bind(conversation.id,model.id,now)
     ];
     const results=await db.batch(writes);
     assistantId=results[2].meta.last_row_id;
@@ -125,6 +160,8 @@ async function generate(context, db, user, body) {
   } catch (err) { await release(db,user.id,requestId); throw err; }
 
   const aborter=new AbortController();
+  let upstreamReader=null;
+  aborter.signal.addEventListener('abort',()=>{upstreamReader?.cancel().catch(()=>{});},{once:true});
   let cancelled=false;
   const abort=()=>{cancelled=true; aborter.abort();};
   request.signal.addEventListener('abort',abort,{once:true});
@@ -136,36 +173,43 @@ async function generate(context, db, user, body) {
       task=(async()=>{
         let text='',status='error',failure='回答未完成，请重试。',usage=null;
         try {
-          send('meta',{conversationId:conversation.id,model:config(env).model});
-          const response=await fetch('https://api.openai.com/v1/responses',{
-            method:'POST',signal:aborter.signal,
-            headers:{Authorization:`Bearer ${env.OPENAI_API_KEY}`,'Content-Type':'application/json'},
-            body:JSON.stringify({model:config(env).model,store:false,stream:true,max_output_tokens:OUTPUT_LIMIT,
-              instructions:'你是模型之间网站的 AI 助手。请用用户使用的语言提供清晰、准确的回答；不确定时明确说明。',
-              input:[...history,{role:'user',content:message}]})
+          send('meta',{conversationId:conversation.id,title:conversation.title,model:model.id,modelName:model.name});
+          const result=await runAi(env,model.model,{
+            messages:[{role:'system',content:'你是模型之间的 AI 助手。请直接回答用户的问题，不展示思考过程；不确定时明确说明。'},
+              ...history,{role:'user',content:model.id==='qwen3'?`${message}\n/no_think`:message}],
+            stream:true,max_tokens:OUTPUT_LIMIT
+          },aborter.signal);
+          const source=result instanceof Response?result.body:result;
+          if(!source?.getReader)throw new Error('Invalid Workers AI stream');
+          upstreamReader=source.getReader();
+          if(aborter.signal.aborted){await upstreamReader.cancel();throw new Error('Aborted');}
+          const readable=new ReadableStream({
+            async pull(controller){try{const part=await upstreamReader.read();if(part.done)controller.close();else controller.enqueue(part.value);}catch(err){controller.error(err);}},
+            cancel(){return upstreamReader.cancel();}
           });
-          if (!response.ok || !response.body) {
-            await response.body?.cancel();
-            throw new ApiError(response.status, response.status===429 ? '模型服务额度或速率受限，请稍后再试。' : '模型服务暂时不可用，请联系管理员检查 API 配置。');
-          }
           let terminal=false;
-          for await (const event of parseEvents(response.body)) {
-            if (event.type==='response.output_text.delta' || event.type==='response.refusal.delta') {
-              const delta=event.delta || '';
+          for await (const event of parseEvents(readable)) {
+            if(event.error)throw new Error('Workers AI generation failed');
+            const choice=event.choices?.[0];
+            const delta=typeof event.response==='string'?event.response:choice?.delta?.content || '';
+            if (delta) {
               if (text.length+delta.length>16000) throw new Error('Output too long');
               text+=delta; send('delta',{text:delta});
-            } else if (event.type==='response.completed') {
-              terminal=true; status='complete'; usage=event.response?.usage || null; break;
-            } else if (event.type==='response.incomplete') {
-              terminal=true; status='incomplete'; failure='回答达到长度限制或提前结束，可继续追问。'; break;
-            } else if (event.type==='response.failed' || event.type==='error') throw new Error('Upstream generation failed');
+            }
+            if(event.usage)usage=event.usage;
+            if(choice?.finish_reason){
+              terminal=true;status=choice.finish_reason==='stop'?'complete':'incomplete';
+              failure='回答达到长度限制，可继续追问。';break;
+            }
+            if(event.type==='done'){terminal=true;status='complete';break;}
           }
+          if(aborter.signal.aborted)throw new Error('Aborted');
           if (!terminal) throw new Error('Unexpected stream end');
         } catch (err) {
           status=cancelled ? 'stopped' : 'error';
-          failure=cancelled ? '已停止生成。' : aborter.signal.aborted ? '生成超时，请重试。' : err instanceof ApiError ? err.message : '回答中断，请稍后重试。';
+          failure=cancelled ? '已停止生成。' : aborter.signal.aborted ? '生成超时，请重试。' : /429|3040|limit|quota|capacity/i.test(String(err.message)) ? '模型繁忙或今日免费额度已用完，请稍后再试。' : '模型暂时不可用，请稍后重试。';
         } finally {
-          clearTimeout(timeout); request.signal.removeEventListener('abort',abort);
+          clearTimeout(timeout); request.signal.removeEventListener('abort',abort);await upstreamReader?.cancel().catch(()=>{});
           try {
             await db.batch([
               db.prepare('UPDATE chat_messages SET content = ?, status = ? WHERE id = ? AND conversation_id = ?').bind(text,status,assistantId,conversation.id),
@@ -193,7 +237,7 @@ export async function handleChat(context) {
     if(path==='/api/chat/quota' && request.method==='GET') return json(await quota(db,user.id,env));
     if(path==='/api/chat' && request.method==='POST') return await generate(context,db,user,await bodyJson(request));
     if(path==='/api/conversations' && request.method==='GET') {
-      const rows=await db.prepare('SELECT id,title,updated_at FROM chat_conversations WHERE user_id = ? ORDER BY updated_at DESC LIMIT 50').bind(user.id).all();
+      const rows=await db.prepare('SELECT id,title,updated_at,model FROM chat_conversations WHERE user_id = ? ORDER BY updated_at DESC LIMIT 50').bind(user.id).all();
       return json({conversations:rows.results});
     }
     const match=path.match(/^\/api\/conversations\/([\da-f-]+)$/i);

@@ -31,7 +31,8 @@ CREATE TABLE IF NOT EXISTS chat_conversations (
   user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   title TEXT NOT NULL,
   created_at INTEGER NOT NULL,
-  updated_at INTEGER NOT NULL
+  updated_at INTEGER NOT NULL,
+  model TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_chat_owner ON chat_conversations(user_id, updated_at);
 CREATE TABLE IF NOT EXISTS chat_messages (

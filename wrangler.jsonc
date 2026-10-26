@@ -3,6 +3,7 @@
   "main": "worker.js",
   "compatibility_date": "2026-10-26",
   "keep_vars": true,
+  "ai": { "binding": "AI" },
   "build": {
     "command": "npm run build"
   },
@@ -17,7 +18,7 @@
     "database_id": "cc00a578-fb3d-47bf-9ab5-df520d0ea25f"
   }],
   "vars": {
-    "OPENAI_MODEL": "gpt-4.1-mini",
+    "CHAT_DEFAULT_MODEL": "qwen3",
     "CHAT_DAILY_LIMIT": "20",
     "CHAT_GLOBAL_DAILY_LIMIT": "200"
   }
