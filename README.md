@@ -8,8 +8,8 @@
 仓库已有 `wrangler.jsonc`，与 `my-website` Worker 和现有 `user-db` 对接：
 
 - Worker 名称：`my-website`。
-- 构建命令：`npm run build`。
-- 部署命令：`npx wrangler deploy`（或 `npm run deploy`，它会先构建）。
+- 控制台构建命令：可留空；Wrangler 配置的 `build.command` 会自动执行 `npm run build`。
+- 部署命令：`npx wrangler deploy`（或 `npm run deploy`）。无需手动生成或上传 dist。
 - Node.js：22.13+，推荐 24。
 - 入口：`worker.js`；公开资源目录：`dist`。
 - D1 变量：`DB`，数据库：`user-db`；ID 已按站点所有者提供的值填写。
