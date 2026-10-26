@@ -132,6 +132,17 @@ function sameOrigin(request) {
   if (origin !== new URL(request.url).origin || request.headers.get('Sec-Fetch-Site') === 'cross-site')
     throw new ApiError(403, '请从本站页面发起操作。');
 }
+export async function requireUser(request, env) {
+  const db = database(env);
+  const token = readToken(request);
+  if (!token) throw new ApiError(401, '请先登录后再使用 AI 对话。');
+  const row = await db.prepare(`SELECT users.id, users.username, users.nickname FROM sessions
+    JOIN users ON users.id = sessions.user_id WHERE token_hash = ? AND expires_at > ?`)
+    .bind(await sha256(token), Math.floor(Date.now()/1000)).first();
+  if (!row) throw new ApiError(401, '登录已过期，请重新登录。');
+  return {db, user:publicUser(row)};
+}
+export {ApiError, json, sameOrigin, bodyJson};
 
 export async function onRequest(context) {
   const {request, env} = context;

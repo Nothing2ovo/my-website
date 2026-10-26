@@ -22,7 +22,7 @@
         body:body === undefined ? undefined : JSON.stringify(body)
       });
       if (!(response.headers.get('Content-Type') || '').includes('application/json'))
-        throw new Error('账号服务未部署，请通过 Cloudflare Pages 网站访问。');
+        throw new Error('账号服务未部署，请通过 Cloudflare 网站访问。');
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || '操作失败，请稍后重试。');
       return data;
@@ -45,6 +45,7 @@
     $('#signed-in').hidden = !user;
     $('#user-name').textContent = user ? user.name : '';
     $('.user-avatar').textContent = user ? Array.from(user.name)[0] : '';
+    window.dispatchEvent(new CustomEvent('atlas-auth', {detail:user || null}));
   }
   async function restoreSession() {
     if (busy || checking) return;

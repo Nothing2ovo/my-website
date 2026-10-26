@@ -1,71 +1,98 @@
-# 模型之间 · AI 大模型探索指南
+# 模型之间 · AI 模型指南与对话
 
-中文 AI 模型介绍网站，提供搜索、用途筛选、官方入口和注册登录。
-前端为 HTML/CSS/JS；账号由 Cloudflare Pages Functions + D1 提供。
+中文模型介绍、搜索与用途筛选；注册登录；登录后的 AI 流式对话、历史记录和每日额度。
+前端使用 HTML/CSS/JavaScript，后端运行在 Cloudflare Workers，数据存储在 D1。
 
-## Cloudflare Pages 部署
+## 部署到你现有的 Cloudflare Worker
 
-关联本 GitHub 仓库后，设置：
+仓库已有 `wrangler.jsonc`，与 `my-website` Worker 和现有 `user-db` 对接：
 
-- 框架：None。
-- 根目录：仓库根目录（留空）。
+- Worker 名称：`my-website`。
 - 构建命令：`npm run build`。
-- 构建输出目录：`dist`。
-- Node.js：22.13 以上，推荐 24（可设置环境变量 `NODE_VERSION=24`）。
-- D1 绑定：数据库选择 **user-db**，变量名使用 **DB**。代码也兼容已有的 `USER_DB` 或 `user-db` 变量名。如果绑定名为其他值，修改后端的 `database()` 函数或改为 `DB`。
+- 部署命令：`npx wrangler deploy`（或 `npm run deploy`，它会先构建）。
+- Node.js：22.13+，推荐 24。
+- 入口：`worker.js`；公开资源目录：`dist`。
+- D1 变量：`DB`，数据库：`user-db`；ID 已按站点所有者提供的值填写。
 
-`functions/` 保留在仓库根目录，由 Pages 单独编译；不要复制到 dist 作为静态文件。`dist/_routes.json` 让 `/api/*` 经过 Functions，其他资源走静态服务。不要仅使用 GitHub Pages（它无法执行此后端）。
-生产/预览环境的数据库绑定分别配置；预览建议使用单独测试库。绑定变更后需要重新部署。
-无需在仓库填写数据库 ID、密码或 Cloudflare API Token。
+与旧版 Pages 部署不同，Worker 通过 `worker.js` 显式分发 `/api/*`，不依赖 Pages 自动识别 `functions/`。其余地址交给 `ASSETS`，聊天页面可通过 `/chat` 或 `/chat.html` 访问。SQL、后端代码及测试不会复制到公开资源目录。
 
-## 数据库
+Cloudflare 的 Git 集成会在提交后触发构建，但仍需确认部署成功；出现失败应查看部署日志。不要仅以“GitHub 推送成功”判断线上已生效。也不要继续使用旧的仅部署静态文件的命令（如 `wrangler deploy --assets`）。
 
-对接现有结构：
+## 启用真实模型调用
+
+尚无 API Key 时，网站及账号功能可用，聊天页显示“AI 服务尚未启用”，不会发出模型请求。
+
+准备好有可用额度的 OpenAI API 账户后：
+
+1. 在 Cloudflare → Workers & Pages → `my-website` → Settings → Variables and Secrets 中新增 **Secret**。
+2. 名称为 **`OPENAI_API_KEY`**，值填写你自己的 API Key。
+3. 保存并应用/部署，然后在网站登录，打开“AI 对话”进行测试。
+
+不要把密钥写入 HTML、JavaScript、GitHub 或聊天记录。生产代码仅从后端 `env.OPENAI_API_KEY` 读取密钥，调用地址固定为 `https://api.openai.com/v1/responses`，不会接受用户指定的 API 地址或模型。
+
+默认模型是 `gpt-4.1-mini`，管理员可在 `wrangler.jsonc` 的 `OPENAI_MODEL` 中更换为账户可用的 Responses 模型。不要用不支持 `max_output_tokens` 的端点替代。API 按实际使用计费，与 ChatGPT 订阅分开。
+
+## 额度与上下文
+
+- 每个账号每天最多 **20 次**，全站每天最多 **200 次**，按 UTC 日期计数，北京时间 08:00 重置。
+- 在 `wrangler.jsonc` 修改 `CHAT_DAILY_LIMIT` / `CHAT_GLOBAL_DAILY_LIMIT`，代码上限分别为 100 / 2000。
+- 未登录、输入不合法或未配置 Key 时，不预留调用额度。
+- 请求一旦预留额度，失败、超时、停止或全站额度耗尽也可能消耗个人次数；不自动退回，避免绕过成本控制。
+- 单次问题最多 2000 字符；最多携带最近 12 条可用历史消息，合计输入上下文最多 12000 字符；输出上限 512 tokens，超时 60 秒。
+- 每人同时最多生成一条回答；单个对话最多 100 条消息。侧边栏显示最近 50 个对话。
+- 这些是调用次数与单次规模限制，不是精确的美元预算。可在 OpenAI 控制台结合用量监控和账户额度管理费用。
+- 停止生成会取消上游请求并保存已收到的部分文字，但不保证撤销模型已经产生的费用。
+
+## 数据与隐私
+
+沿用已有表：
 
 ```text
 users: id, username, email, password_hash, nickname, created_at
 sessions: token_hash, user_id, expires_at, created_at
 ```
 
-已有这两张表时无需重建。首次 API 请求自动添加用户名/邮箱唯一索引、会话过期索引和 `auth_rate_limits` 表，不删除原有数据。若已有重复用户名/邮箱，需要先处理重复记录，否则唯一索引创建会失败。`schema.sql` 是完整的可重复执行建表脚本，供新库和本地测试使用。
+新增 `chat_conversations`、`chat_messages`、`chat_usage`、`chat_locks` 表，在首次登录后的聊天 API 请求时自动创建。不会重建/删除已有账号表。`schema.sql` 提供完整幂等建表脚本供新数据库使用。
 
-注册要求用户名（3–32 位字母/数字/下划线）、邮箱、昵称（2–20 字符）和密码（8–128 位）。用户名及邮箱规范为小写；邮箱暂不验证，也不提供密码找回。
+每次历史查询、发送和删除均校验登录及对话归属。对话记录保存在 D1，删除会移除该对话及消息，不可恢复。额度记录独立保留，删除对话不会返还额度。页面直接以文字显示回答，不执行模型返回的 HTML。
 
-密码格式为 `pbkdf2_sha256$100000$<随机盐>$<摘要>`，不保存明文。旧本地演示账号不会上传；前端会清除旧演示记录，需重新注册。已有其他密码格式的数据库账号不会自动转换。
+每次模型调用会向 OpenAI 发送当前问题和受限的历史上下文，不发送账号邮箱或密码；使用 `store:false` 不创建可检索的 Responses 对象，但不等同于 OpenAI 的零数据留存承诺。网页已说明消息处理方式。
 
-会话有效期 12 小时。生产环境通过 Secure、HttpOnly、SameSite=Lax 的 `__Host-atlas_session` Cookie 传递随机令牌，D1 只保存令牌 SHA-256 摘要。退出删除对应数据库会话。接口包含预处理 SQL、同源检查和禁止缓存。注册每 IP 每 10 分钟最多 5 次，登录最多 30 次，计数保存在 D1；注册或登录成功时清理过期记录。高流量生产站点可进一步配置 Cloudflare WAF/Turnstile。
+密码使用随机盐与 PBKDF2-SHA-256 摘要；会话有效期 12 小时，通过 Secure/HttpOnly/SameSite=Lax Cookie 传递随机令牌，D1 保存令牌摘要。邮箱暂不验证、不提供密码找回。原本地演示账号需重新注册。上线公开运营时还应根据实际情况完善邮箱验证、反滥用和隐私政策。
 
 ## API
 
-| 方法 | 地址 | 请求 |
+| 方法 | 路径 | 用途 |
 | --- | --- | --- |
-| POST | `/api/auth/register` | `{ "account": "your_name", "email": "you@example.com", "name": "昵称", "password": "..." }` |
-| POST | `/api/auth/login` | `{ "account": "your_name", "password": "..." }` |
-| GET | `/api/auth/me` | 返回 `{ "user": null }` 或当前用户 |
-| POST | `/api/auth/logout` | `{}` |
+| POST | `/api/auth/register` | 注册：account、email、name、password |
+| POST | `/api/auth/login` | 登录：account、password |
+| GET | `/api/auth/me` | 当前账号 |
+| POST | `/api/auth/logout` | 退出 |
+| GET | `/api/chat/quota` | 本人剩余额度、模型与服务状态 |
+| POST | `/api/chat` | SSE 对话：message、conversationId（新对话可为 null） |
+| GET | `/api/conversations` | 最近 50 个对话 |
+| GET | `/api/conversations/:id` | 本人对话及消息 |
+| DELETE | `/api/conversations/:id` | 删除本人对话及消息 |
 
-POST 使用 `Content-Type: application/json`，Origin 必须与网站相同。前端已处理 Cookie、错误、超时和登录状态恢复；不再在 localStorage 保存账号或登录令牌。
+写入请求必须同源。POST 使用 JSON。SSE 事件为 `meta`、`delta`、`done`、`error`；只有收到模型终止事件且记录保存成功才发送 `done`。中断/截断不会伪装为成功。
 
-## 本地验证
+## 本地开发与测试
 
-使用 Node.js 22.13+。测试使用原生 SQLite，无需安装测试依赖：
+使用 Node.js 22.13+：
 
 ```sh
 npm test
 npm run build
+npx wrangler d1 execute user-db --local --file=schema.sql
+npx wrangler dev
 ```
 
-完整本地预览使用官方 Wrangler：
+本地默认使用模拟 D1；不加 `--remote`，不修改远程数据库。需要真实 AI 本地测试时，在忽略的 `.dev.vars` 中配置 `OPENAI_API_KEY`。没有 Key 时可以验证注册、登录、历史和服务未启用状态。
 
-```sh
-npx wrangler d1 execute user-db --local --config wrangler.local.jsonc --file=schema.sql
-npx wrangler pages dev dist --config wrangler.local.jsonc
-```
+自动化测试使用原生 SQLite 和模拟上游流，不调用真实付费 API。覆盖认证、CSRF、请求大小、会话、对话归属、上下文、流式中文、额度、并发锁、停止生成和上游失败。
 
-`wrangler.local.jsonc` 中的数据库 ID 是本地占位符，上述命令只使用本地模拟数据库，不修改生产 D1。请勿用此本地配置执行远程部署。普通 `python -m http.server` 只能预览布局，不能执行账号 API。
+`wrangler.local.jsonc` 是保留的 Pages 本地开发配置。如果继续使用 Pages，可构建后通过 `npx wrangler pages dev dist --config wrangler.local.jsonc` 预览；生产 Worker 应使用默认的 `wrangler.jsonc`。
 
-## 上线检查
+## 上线验证
 
-等待 Pages 部署后，注册新账号并确认 D1 的 users 表新增一行；刷新应保持登录，退出后 `/api/auth/me` 应返回 `user: null`。若 API 返回 HTML，检查构建设置与 functions 目录；若返回 503，检查 D1 绑定、表结构及 Functions 日志。
-
-参考：[Cloudflare Pages D1 绑定](https://developers.cloudflare.com/pages/functions/bindings/#d1-databases)、[Functions 路由](https://developers.cloudflare.com/pages/functions/routing/)。
+确认 Cloudflare 部署成功、Bindings 中 `DB` 指向 `user-db`。登录后打开“AI 对话”，未配置 Key 应提示未启用；配置后发送一条测试消息，应逐步显示回答。刷新后历史仍在，退出后不可访问，换账号不可读取其他用户对话。查看 D1 的 chat_messages 和 chat_usage 表确认写入。

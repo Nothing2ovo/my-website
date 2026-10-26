@@ -1,0 +1,21 @@
+{
+  "name": "my-website",
+  "main": "worker.js",
+  "compatibility_date": "2026-10-26",
+  "keep_vars": true,
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*"]
+  },
+  "d1_databases": [{
+    "binding": "DB",
+    "database_name": "user-db",
+    "database_id": "cc00a578-fb3d-47bf-9ab5-df520d0ea25f"
+  }],
+  "vars": {
+    "OPENAI_MODEL": "gpt-4.1-mini",
+    "CHAT_DAILY_LIMIT": "20",
+    "CHAT_GLOBAL_DAILY_LIMIT": "200"
+  }
+}

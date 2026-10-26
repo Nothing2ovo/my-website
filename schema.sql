@@ -24,3 +24,34 @@ CREATE TABLE IF NOT EXISTS auth_rate_limits (
   expires_at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_atlas_rate_expires_at ON auth_rate_limits(expires_at);
+
+-- AI chat: also created on first authenticated chat API request.
+CREATE TABLE IF NOT EXISTS chat_conversations (
+  id TEXT PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_chat_owner ON chat_conversations(user_id, updated_at);
+CREATE TABLE IF NOT EXISTS chat_messages (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  conversation_id TEXT NOT NULL REFERENCES chat_conversations(id) ON DELETE CASCADE,
+  role TEXT NOT NULL CHECK(role IN ('user','assistant')),
+  content TEXT NOT NULL,
+  status TEXT NOT NULL,
+  model TEXT,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_chat_messages ON chat_messages(conversation_id, id);
+CREATE TABLE IF NOT EXISTS chat_usage (
+  scope TEXT NOT NULL,
+  day TEXT NOT NULL,
+  requests INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY(scope, day)
+);
+CREATE TABLE IF NOT EXISTS chat_locks (
+  user_id INTEGER PRIMARY KEY,
+  request_id TEXT NOT NULL,
+  expires_at INTEGER NOT NULL
+);
